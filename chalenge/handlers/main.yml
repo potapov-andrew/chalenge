@@ -1,0 +1,11 @@
+---
+# handlers file for chalenge
+- name: grub-update
+  shell: update-grub
+- name: reboot
+  reboot:
+    reboot_timeout: 90
+    msg: "SYSTEM REBOOT..."
+- name: stats
+  debug:
+    msg: '{CPUs: {{ ansible_facts.processor }}, cores: {{ ansible_facts.processor_cores }}, count: {{ ansible_facts.processor_cores }}, numproc: {{ ansible_facts.processor_nproc }}, theads_per_core: {{ ansible_facts.processor_threads_per_core }} }'

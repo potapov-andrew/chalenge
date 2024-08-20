@@ -1,0 +1,6 @@
+---
+- name: execute role
+  hosts: chalenge
+  become: yes
+  roles:
+    - chalenge

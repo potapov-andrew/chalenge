@@ -1,0 +1,7 @@
+---
+# defaults file for chalenge
+VAR_GOVERNOR: "performance"
+VAR_NIC: "net0"
+VAR_CRYPTS:
+  - {"device": "{{ VAR_DEV_TO_ENC }}", "state": "opened", "name": "cryptedev"}
+  - {"device": "vdc2", "state": "opened", "name": "cryptedxvda14"}

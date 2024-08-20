@@ -1,0 +1,114 @@
+---
+# tasks file for chalenge
+
+- name: cstate
+  block:
+  - name: set c-state fact and verify cstate parameter
+    set_fact:
+      ans_max_cstate: "{{ lookup('file', '/sys/module/intel_idle/parameters/max_cstate') }}"
+  - name: add param to lineinfile
+    lineinfile:
+      path: /etc/default/grub
+      regexp: '^GRUB_CMDLINE_LINUX='
+      line: 'GRUB_CMDLINE_LINUX="intel_idle.max_cstate=0"'
+      backup: yes
+    when: ans_max_cstate != "0"
+    notify:
+      - grub-update
+      - reboot
+  tags:
+    - cpu
+    - cstate
+  rescue:
+  - name: c-state setting failed
+    debug:
+      msg: "C-state setting was failed"
+
+- name: CPU freq
+  block:
+    - name: install packages
+      package:
+        name: cpufrequtils
+        state: present
+    - name: set freq by governor (performance default)
+      shell: cpufreq-set -g {{ VAR_GOVERNOR }} -r
+  tags:
+    - cpu
+    - freq
+  rescue:
+    - name: info cpu freq
+      debug:
+        msg: "CPU freq changing to {{ VAR_GOVERNOR }} was failed"
+
+- name: change NIC name
+  block:
+    - name: send templ to udev
+      template:
+        src: 70-persistent-net.rules.j2
+        dest: /etc/udev/rules.d/70-persistent-net.rules
+        force: true
+      notify:
+        - reboot
+  tags:
+    - nic
+  rescue:
+      - name: raise error ubuntu change NIC name
+        debug:
+          msg: "NIC rename was failed"
+
+- name: encryptions
+  block:
+    - name: create file
+      copy:
+        content: "{{ lukspass }}"
+        dest: /root/luksfile
+        force: true
+    - name: encrypt all block device
+      community.crypto.luks_device:
+        device: "/dev/{{ item.device }}"
+        state: "{{ item.state }}"
+        name: "{{ item.name }}"
+        keyfile: /root/luksfile
+        cipher: "aes"
+        hash: "sha256"
+      with_items:
+        - "{{ VAR_CRYPTS }}"
+    - name: mkfs for crypted part (not whole block device)
+      filesystem:
+        fstype: ext4
+        dev: /dev/mapper/{{ item.name }}
+      with_items:
+        - "{{ VAR_CRYPTS[1] }}"
+    - name: mount crypted part
+      mount:
+        path: /somedir/{{ item.name }}
+        src: /dev/mapper/{{ item.name }}
+        fstype: ext4
+        state: mounted
+      with_items:
+        - "{{ VAR_CRYPTS[1] }}"
+    - name: register uuid
+      shell: blkid | grep /dev/"{{ VAR_CRYPTS[1].device }}" | awk '{ print $2; }'
+      register: var_uuid
+    - name: add device to crypttab
+      crypttab:
+        backing_device: "{{ var_uuid.stdout }}"
+        name: '{{ VAR_CRYPTS[1].name }}'
+        state: present
+        password: /root/luksfile
+  tags:
+    - crypt
+  rescue:
+    - name: encryption failed
+      debug:
+        msg: "Encryption was failed"
+  always:
+    - name: get stats
+      debug:
+        msg: "STATS...."
+      changed_when: true
+      tags:
+        - always
+      notify:
+        - stats
+
