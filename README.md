@@ -29,4 +29,4 @@ lukspass (vault) - encrypted key for LUKS (type 'parol' to access)
 
 How to execute
 ------------
-ansible-playbook -i <inventory> chalenge.yml -u <username> -b --ask-vault-pass
+ansible-playbook -i inventory chalenge.yml -u username -b --ask-vault-pass
